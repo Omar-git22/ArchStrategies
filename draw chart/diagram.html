@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Diagram</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    svg {
+      width: 600px;
+      height: 400px;
+      margin: 0 auto;
+    }
+
+    .month {
+      margin-bottom: 20px;
+    }
+
+    .strategy {
+      stroke: black;
+      stroke-width: 1px;
+    }
+
+    .title {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+
+    .legend {
+      position: absolute;
+      top: 200px;
+      left: 10px;
+      text-align: center;
+    }
+
+    .legend-item {
+      margin-right: 10px;
+    }
+  </style>
+</head>
+<body>
+  <svg></svg>
+
+  <script>
+    // Import the D3 library.
+    const d3 = require("d3");
+
+    // Create a new SVG element.
+    const svg = d3.select("svg");
+
+    // Define the data for the diagram.
+    const data = [
+      {
+        month: "January",
+        strategies: [
+          { category: "Cooling Ventilation", comfort: 45 },
+          { category: "Comfort Ventilation", comfort: 35 },
+          { category: "High Mass No Ventilation", comfort: 25 },
+          { category: "High Mass Night Ventilation", comfort: 55 },
+          { category: "Evaporative Cooling", comfort: 15 },
+        ],
+      },
+      {
+        month: "February",
+        strategies: [
+          { category: "Cooling Ventilation", comfort: 50 },
+          { category: "Comfort Ventilation", comfort: 20 },
+          { category: "High Mass No Ventilation", comfort: 15 },
+          { category: "High Mass Night Ventilation", comfort: 40 },
+          { category: "Evaporative Cooling", comfort: 25 },
+        ],
+      },
+      // ...
+    ];
+
+    // Create a new D3 scale to map the strategy categories to colors.
+    const colorScale = d3
+      .scaleOrdinal()
+      .domain(data[0].strategies.map((strategy) => strategy.category))
+      .range([
+        "#FF0000", // Cooling Ventilation
+        "#00FF00", // Comfort Ventilation
+        "#FFFF00", // High Mass No Ventilation
+        "#00FFFF", // High Mass Night Ventilation
+        "#0000FF", // Evaporative Cooling
+      ]);
+
+    // Create a new D3 group element for each month.
+    const monthGroups = svg.selectAll("g.month").data(data).enter().append("g").attr("class", "month");
+
+    // Create a new D3 bar element for each strategy in each month.
+    const strategyBars = monthGroups
+      .selectAll("rect.strategy")
+      .data((d) => d.strategies)
+      .enter()
+      .append("rect")
+      .attr("class", "strategy")
+      .attr("fill", (d) => colorScale(d.category))
+      .attr("width", 20)
+      .attr("height", 20)
+      .attr("x", (d, i) => i * 20 + 10)
+      .attr("y", (d) => d3.scaleLinear().domain([0, 100]).range([0, 400])(d.comfort));
+
+    // Add a title to the diagram.
+    svg
+      .append("text")
+      .attr("class", "title")
+      .text("Comfort Percentage of Different Cooling Strategies in Each Month")
+      .attr("x", 10)
+      .attr("y", 20);
+
+    // Add a legend to the diagram.
+    const legend = svg
+      .append("g")
+      .attr("class", "legend")
+      .attr("transform", "translate(300, 100)");
+
+legend
+  .selectAll("rect.legend-item")
+  .data(colorScale.domain())
+  .enter()
+  .append("rect")
+  .attr("class", "legend-item")
+  .attr("fill", (d) => colorScale(d))
+  .attr("width", 20)
+  .attr("height", 20)
+  .attr("x", (d, i) => i * 20 + 10)
+  .attr("y", 10);
+
+legend
+  .selectAll("text.legend-label")
+  .data(colorScale.domain())
+  .enter()
+  .append("text")
+  .attr("class", "legend-label")
+  .text((d) => d)
+  .attr("x", (d, i) => i * 20 + 40)
+  .attr("y", 20);
+
+</script>
+</body>
+</html>
