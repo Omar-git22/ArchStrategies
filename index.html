@@ -415,7 +415,7 @@
 
         <form id="inputForm">
             <div class="form-group">
-                <label for="roughness">City:</label>
+                <label for="city">City:</label>
                 <input type="text" class="form-control" id="city" placeholder="Enter City">
             </div>
         </form>
@@ -436,32 +436,40 @@
                     <input type="number" class="form-control" id="roughness" placeholder="Enter roughness">
                 </div>
                 <div class="form-group">
-                    <label for="height">Height of Window in the Building:</label>
-                    <input type="number" class="form-control" id="height" placeholder="Enter height">
+                    <label for="height">Window Height:</label>
+                    <select class="form-control" id="height">
+                        <option value="10">10</option>
+                        <option value="20">20</option>
+                        <option value="30">30</option>
+                        <option value="40">40</option>
+                        <option value="50">50</option>
+                        <option value="60">60</option>
+                    </select>
                 </div>
                 <div class="form-group">
-                    <label for="height">Wind Speed at Airport:</label>
+                    <label for="height">Wind Speed at Airport (m/s):</label>
                     <input type="number" class="form-control" id="speed" placeholder="Enter speed">
                 </div>
+                <span class="popuptext" id="windRes"></span>
                 <hr>
                 <div class="form-group">
                     <label for="window_height">Window Height:</label>
-                    <input type="number" class="form-control" id="window_height" placeholder="Enter window height">
+                    <input type="number" class="form-control" id="window_height" placeholder="Enter window height: 0.3 / 0.6 / 1">
                 </div>
                 <div class="form-group">
                     <label for="window_width">Window Width:</label>
-                    <input type="number" class="form-control" id="window_width" placeholder="Enter window width">
+                    <input type="number" class="form-control" id="window_width" placeholder="Enter window width: 0.3 / 0.6 / 1">
                 </div>
                 <div class="form-group">
                     <label for="wind_direction">Wind Direction:</label>
-                    <input type="text" class="form-control" id="wind_direction" placeholder="Enter wind direction">
+                    <input type="text" class="form-control" id="wind_direction" placeholder="Enter wind direction: normal / oblique">
                 </div>
                 <div class="form-group">
-                    <label for="angle_wind">Angle Wind:</label>
-                    <input type="text" class="form-control" id="angle_wind" placeholder="Enter angle wind">
+                    <label for="angle_wind">Location:</label>
+                    <input type="text" class="form-control" id="angle_wind" placeholder="Enter angle wind: single opening / two openings same / two openings adjacent / two openings opposite">
                 </div>
-                <button type="button" class="btn btn-primary" data-bind="click: Manager.captureValues">Submit</button>
-                <br>
+                <span class="popuptext" id="crossVentRes"></span>
+                <button type="button" class="btn btn-primary margin-bot-6px" data-bind="click: Manager.windStrategies">Submit</button>
             </form>
         </div>
 <!--        <div id="panel-ddy-data" class="panel panel-default">-->

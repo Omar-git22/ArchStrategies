@@ -1,4 +1,6 @@
 !function () {
+    const tempUnit = " \u00B0C";
+    const speedUnit = " m/s";
     var e, t = {
         Chart: {
             dryBulbMin: 0,
@@ -2280,29 +2282,6 @@
                         var excelFileName = filename + '.xlsx';
                         XLSX.writeFile(workbook, excelFileName);
                     };
-                this.callPythonScript = function () {
-                    // Create a new XMLHttpRequest object
-                    var xhr = new XMLHttpRequest();
-
-                    // Configure the request
-                    xhr.open('GET', 'windExternalSite.py', true);
-
-                    // Set up a callback function to handle the response
-                    xhr.onreadystatechange = function () {
-                        if (xhr.readyState == XMLHttpRequest.DONE) {
-                            if (xhr.status == 200) {
-                                // Request was successful, do something with the response
-                                console.log(xhr.responseText);
-                            } else {
-                                // Request failed, handle the error
-                                console.error('Request failed: ' + xhr.status);
-                            }
-                        }
-                    };
-
-                    // Send the request
-                    xhr.send();
-                };
                 var g = !1, b = null;
 
                 function f(e) {
@@ -2339,7 +2318,7 @@
                     }), g = !0, setTimeout(function () {
                         g && f(!0);
                     }, 500);
-                }, this.captureValues = function () {
+                }, this.windStrategies = function () {
                     var roughness = document.getElementById('roughness').value;
                     var height = document.getElementById('height').value;
                     var speed = document.getElementById('speed').value;
@@ -2348,8 +2327,35 @@
                     var wind_direction = document.getElementById('wind_direction').value;
                     var angle_wind = document.getElementById('angle_wind').value;
 
-                    // o.callPythonScript();
+                    var ans1 = o.windAtHeight(roughness, height, speed).toFixed(2);
+                    var WS_div = document.getElementById("windRes");
+                    WS_div.innerText = "For height = " + height + ", wind speed = " + ans1 + speedUnit;
+                    //
+                    var cross_vent_val = ans1 * o.getIndoorWindSpeed(window_height, window_width, wind_direction, angle_wind);
+                    var CV_div = document.getElementById("crossVentRes");
+                    CV_div.innerText = "Cross Ventilation:\nIndoor wind velocity: " + cross_vent_val.toFixed(2) + "m/s\n\n";
+                    //If the indoor average velocity is ≥ that the velocity required for comfort, then go to step 5.
+
+
+                    // wind catcher
+                    const C = 0.35;
+                    const delta_T = 3;
+                    const Btu = 48;
+                    var v = cross_vent_val;
+                    var A_ft = Btu / (C * 88 * 1.08 * delta_T * v);
+                    CV_div.innerText += "For wind speed at the wind tower inlet = " + v.toFixed(2) + " mph and Building Heat Gain Rate = 48 Btu/hr,ft2: Size of the inlet = " + A_ft.toFixed(2) + "%\n\n";
+
+                    //Stack Ventilation
+                    // CV_div.innerText += "Stack Ventilation: \n";
+                    // const C2 = 313;
+                    // const delta_T2 = 1.7;
+                    // const Btu2 = 30;
+                    // var h = 3;
+                    // var A_ft2 = Btu2 / (C2 * 88 * 1.08 * delta_T2 * h);
+                    // CV_div.innerText += "For stack height = " + h + " Stack Area = " + A_ft2.toFixed(2) + "%\n\n";
+
                 }, this.automate = function () {
+                    // o.searchAndDownloadFile();
                     o.selectFile(".epw");
                     t.Chart.dataOverlay = 3;
                     o.dataLoaded();
@@ -2358,7 +2364,6 @@
                     e.Chart.showWetBulb(true);
                     e.Comfort.predictCLO(true);
                     e.Comfort.trackTemperature(true);
-                    // callPythonScript();
                     var popup = document.getElementById("myPopup");
                     popup.classList.toggle("show");
 
@@ -2371,9 +2376,6 @@
                         matchesMDB2 = data.match(/\(DB=>MCWB\) 2%, MaxDB=\d+.\d+C/g);// gets Design day high temp (DB) line from the ddy file
                         matchesMWB2 = data.match(/\(DB=>MCWB\) 2%, MaxDB=\d+.\d+C MWB=\d+.\d+C/g); // gets Design day high temp (WB) line from the ddy file
                     });
-
-                    const tempUnit = " \u00B0C";
-                    const speedUnit = " m/s";
 
                     var indexes = [];
                     const daysInEachMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]; // Days in each month
@@ -2721,8 +2723,8 @@
 
                             // //cross ventilation:
                             // //ask for 1. size of window, 2. direction of wind, 3. angle of wind on window
-                            // var window_height = 1 / 3;
-                            // var window_width = 1 / 3;
+                            // var window_height = 0.3;
+                            // var window_width = 0.3;
                             // var windDirection = "normal";
                             // var angleWind = "single opening";
 
@@ -2808,123 +2810,141 @@
                     }
 
                     return [dayArray, nightArray];
-                }, this.getIndoorWindSpeed = function (window_height, window_width, windDirection, angleWind) {
-                    var windPercent = 0;
-                    if (window_height === 1 / 3 && window_width === 1 / 3) {
-                        if (angleWind === "single opening") {
-                            if (windDirection === "normal")
-                                windPercent = 0.12;
-                            else
-                                windPercent = 0.14;
+                },
+                    this.windAtHeight = function (z, h2, v) {
+                        const h1 = 10;
+                        var result = v * ((Math.log(h2 / z)) / (Math.log(h1 / z)));
+                        return result;
+                    },
+                    this.searchAndDownloadFile = function () {
+                        var cityName = document.getElementById("city").value.trim();
+                        if (cityName === "") {
+                            alert("Please enter a city name.");
+                            return;
                         }
-                        else if (angleWind === "two openings adjacent") {
-                            if (windDirection === "normal")
-                                windPercent = 0.37;
-                            else
-                                windPercent = 0.45;
+                        // Perform a web search (simplified example)
+                        var searchQuery = "https://example.com/search?q=" + encodeURIComponent(cityName);
+                        // For simplicity, assume the search results contain a link to the file
+                        var fileUrl = "https://example.com/download/" + encodeURIComponent(cityName) + ".txt";
+                        // Initiate the file download
+                        window.open(fileUrl, '_blank');
+                    }, this.getIndoorWindSpeed = function (window_height, window_width, windDirection, angleWind) {
+                        var windPercent = 0;
+                        if (parseFloat(window_height) === 0.3 && parseFloat(window_width) === 0.3) {
+                            if (angleWind === "single opening") {
+                                if (windDirection === "normal")
+                                    windPercent = 0.12;
+                                else
+                                    windPercent = 0.14;
+                            }
+                            else if (angleWind === "two openings adjacent") {
+                                if (windDirection === "normal")
+                                    windPercent = 0.37;
+                                else
+                                    windPercent = 0.45;
+                            }
+                            else if (angleWind === "two openings opposite") {
+                                if (windDirection === "normal")
+                                    windPercent = 0.35;
+                                else
+                                    windPercent = 0.42;
+                            }
                         }
-                        else if (angleWind === "two openings opposite") {
-                            if (windDirection === "normal")
-                                windPercent = 0.35;
-                            else
-                                windPercent = 0.42;
+                        else if (parseFloat(window_height) === 0.3 && parseFloat(window_width) === 0.6) {
+                            if (angleWind === "single opening") {
+                                if (windDirection === "normal")
+                                    windPercent = 0.13;
+                                else
+                                    windPercent = 0.17;
+                            }
+                            else if (angleWind === "two openings same") {
+                                windPercent = 0.22;
+                            }
+                            else if (angleWind === "two openings adjacent") {
+                                if (windDirection === "normal")
+                                    windPercent = 0.37;
+                                else
+                                    windPercent = 0.45;
+                            }
+                            else if (angleWind === "two openings opposite") {
+                                if (windDirection === "normal")
+                                    windPercent = 0.37;
+                                else
+                                    windPercent = 0.51;
+                            }
                         }
-                    }
-                    else if (window_height === 1 / 3 && window_width === 2 / 3) {
-                        if (angleWind === "single opening") {
-                            if (windDirection === "normal")
-                                windPercent = 0.13;
-                            else
-                                windPercent = 0.17;
-                        }
-                        else if (angleWind === "two openings same") {
-                            windPercent = 0.22;
-                        }
-                        else if (angleWind === "two openings adjacent") {
-                            if (windDirection === "normal")
-                                windPercent = 0.37;
-                            else
-                                windPercent = 0.45;
-                        }
-                        else if (angleWind === "two openings opposite") {
-                            if (windDirection === "normal")
-                                windPercent = 0.37;
-                            else
-                                windPercent = 0.51;
-                        }
-                    }
-                    else if (window_height === 1 / 3 && window_width === 3 / 3) {
-                        if (angleWind === "single opening") {
-                            if (windDirection === "normal")
-                                windPercent = 0.16;
-                            else
+                        else if (parseFloat(window_height) === 0.3 && parseFloat(window_width) === 1) {
+                            if (angleWind === "single opening") {
+                                if (windDirection === "normal")
+                                    windPercent = 0.16;
+                                else
+                                    windPercent = 0.23;
+                            }
+                            else if (angleWind === "two openings same") {
                                 windPercent = 0.23;
+                            }
+                            else if (angleWind === "two openings adjacent") {
+                                if (windDirection === "normal")
+                                    windPercent = 0.40;
+                                else
+                                    windPercent = 0.51;
+                            }
+                            else if (angleWind === "two openings opposite") {
+                                if (windDirection === "normal")
+                                    windPercent = 0.47;
+                                else
+                                    windPercent = 0.65;
+                            }
                         }
-                        else if (angleWind === "two openings same") {
-                            windPercent = 0.23;
+                        return windPercent;
+                    }, this.setupDDY = function () {
+                        o.selectFile(".ddy");
+                    }, this.selectEPWFile = function () {
+                        o.selectFile(".epw");
+                    }, this.selectCSVFile = function () {
+                        o.selectFile(".csv");
+                    }, this.showLoadSettings = function () {
+                        o.selectFile(".json");
+                    }, this.importFile = function (t) {
+                        function r() {
+                            e.Manager.showWaitingCursor(!1);
+                            var t = "File does not contain a recognisable data format.";
+                            null != S ? ($("#modal-data-error").text(t), $("#modal-data-alert").removeClass("hidden"),
+                                o.paramErrorVisible = !0) : window.alert("ERROR: " + t);
                         }
-                        else if (angleWind === "two openings adjacent") {
-                            if (windDirection === "normal")
-                                windPercent = 0.40;
-                            else
-                                windPercent = 0.51;
-                        }
-                        else if (angleWind === "two openings opposite") {
-                            if (windDirection === "normal")
-                                windPercent = 0.47;
-                            else
-                                windPercent = 0.65;
-                        }
-                    }
-                    return windPercent;
-                }, this.setupDDY = function () {
-                    o.selectFile(".ddy");
-                }, this.selectEPWFile = function () {
-                    o.selectFile(".epw");
-                }, this.selectCSVFile = function () {
-                    o.selectFile(".csv");
-                }, this.showLoadSettings = function () {
-                    o.selectFile(".json");
-                }, this.importFile = function (t) {
-                    function r() {
-                        e.Manager.showWaitingCursor(!1);
-                        var t = "File does not contain a recognisable data format.";
-                        null != S ? ($("#modal-data-error").text(t), $("#modal-data-alert").removeClass("hidden"),
-                            o.paramErrorVisible = !0) : window.alert("ERROR: " + t);
-                    }
 
-                    e.Manager.showWaitingCursor(!0), pdKO.importFiles(t, {
-                        json: function (t, i) {
-                            if (e.Manager.showWaitingCursor(!1), t && t.result) {
-                                if (e.Manager.importDialogOpen()) return void e.Manager.importText(t.result);
-                                var n = JSON.parse(t.result), s = "";
-                                pd.isArray(n.ProcessPoints) ? (pd.isObject(n.PsychrometricUnits) && (s = n.PsychrometricUnits["DryBulbTemperature(DBT)"]),
-                                    e.Chart.readProcessPoints(n.ProcessPoints, s)) : (n.Chart || n.Comfort) && (a ? a.setText(t.result) : o.paramData(t.result),
-                                        null != S ? (o.paramDataChanged(!0), $("#file-drop-box-label").html("File successfully loaded: <em>" + i.name + "</em>"),
-                                            a && a.focus()) : o.parseParamData());
-                            } else r();
-                        },
-                        error: r,
-                        extra: [{
-                            match: ".csv",
-                            callback: function (t) {
-                                e.Manager.showWaitingCursor(!1), t && t.result && (e.Manager.importDialogOpen() ? e.Manager.importText(t.result) : pd.startsWith(t.result, "#PD:ProcessPoints,") ? e.Chart.readCSVProcessPoints(t) : ($("#modal-import").modal("show"),
-                                    o.importText(t.result)));
-                            }
-                        }, {
-                            match: ".epw",
-                            callback: function (t) {
-                                e.Manager.showWaitingCursor(!1), pdDOM.setLocalStorageItem("showStartMenu", 1),
-                                    n.parseEPW(t) && e.Weather.updateWeatherStation();
-                                dispatchEvent(new Event('month-comfort'));
-                            }
-                        }]
-                    });
-                }, this.storeSettings = function () {
-                    !0 === confirm("This will store your current settings as your initial start-up configuration.\n\nAre you sure?") && t.writeToLocalStorage();
-                }, this.clearSettings = function () {
-                    !0 === confirm("This will remove any stored start-up configuration data and return to original default values.\n\nAre you sure?") && t.clearLocalStorage();
-                };
+                        e.Manager.showWaitingCursor(!0), pdKO.importFiles(t, {
+                            json: function (t, i) {
+                                if (e.Manager.showWaitingCursor(!1), t && t.result) {
+                                    if (e.Manager.importDialogOpen()) return void e.Manager.importText(t.result);
+                                    var n = JSON.parse(t.result), s = "";
+                                    pd.isArray(n.ProcessPoints) ? (pd.isObject(n.PsychrometricUnits) && (s = n.PsychrometricUnits["DryBulbTemperature(DBT)"]),
+                                        e.Chart.readProcessPoints(n.ProcessPoints, s)) : (n.Chart || n.Comfort) && (a ? a.setText(t.result) : o.paramData(t.result),
+                                            null != S ? (o.paramDataChanged(!0), $("#file-drop-box-label").html("File successfully loaded: <em>" + i.name + "</em>"),
+                                                a && a.focus()) : o.parseParamData());
+                                } else r();
+                            },
+                            error: r,
+                            extra: [{
+                                match: ".csv",
+                                callback: function (t) {
+                                    e.Manager.showWaitingCursor(!1), t && t.result && (e.Manager.importDialogOpen() ? e.Manager.importText(t.result) : pd.startsWith(t.result, "#PD:ProcessPoints,") ? e.Chart.readCSVProcessPoints(t) : ($("#modal-import").modal("show"),
+                                        o.importText(t.result)));
+                                }
+                            }, {
+                                match: ".epw",
+                                callback: function (t) {
+                                    e.Manager.showWaitingCursor(!1), pdDOM.setLocalStorageItem("showStartMenu", 1),
+                                        n.parseEPW(t) && e.Weather.updateWeatherStation();
+                                    dispatchEvent(new Event('month-comfort'));
+                                }
+                            }]
+                        });
+                    }, this.storeSettings = function () {
+                        !0 === confirm("This will store your current settings as your initial start-up configuration.\n\nAre you sure?") && t.writeToLocalStorage();
+                    }, this.clearSettings = function () {
+                        !0 === confirm("This will remove any stored start-up configuration data and return to original default values.\n\nAre you sure?") && t.clearLocalStorage();
+                    };
             }();
     }();
     s.Chart.maxDayIndex = ko.observable(t.Chart.isLeapYear ? 365 : 364), o.year(t.Chart.isLeapYear ? 2e3 : 2001),
